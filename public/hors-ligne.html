@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#e8772e">
+<title>Pas de connexion — Annales+</title>
+<link rel="icon" href="/icons/icon-192.png">
+<style>
+  body{margin:0;min-height:100svh;display:grid;place-items:center;background:#f7f1e3;color:#1f3a30;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px;box-sizing:border-box;text-align:center}
+  main{max-width:26rem}
+  img{width:72px;height:72px;border-radius:18px}
+  h1{font-size:1.5rem;margin:20px 0 8px}
+  p{line-height:1.5;color:#4b5a52}
+  button{margin-top:16px;min-height:44px;padding:0 24px;border:0;border-radius:999px;background:#e8772e;color:#fff;font-weight:700;font-size:1rem;cursor:pointer}
+</style>
+</head>
+<body>
+<main>
+  <img src="/icons/icon-192.png" alt="">
+  <h1>Pas de connexion Internet</h1>
+  <p>Annales+ a besoin d'Internet pour charger tes sujets, tes leçons et ton temps de révision. Vérifie ta connexion (données mobiles ou Wi-Fi), puis réessaie.</p>
+  <button type="button" onclick="location.reload()">Réessayer</button>
+</main>
+<script>window.addEventListener('online',function(){location.reload()})</script>
+</body>
+</html>

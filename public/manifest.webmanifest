@@ -1,0 +1,26 @@
+{
+  "id": "/accueil",
+  "name": "Annales+ — Réussis ton CEPE, BEPC et BAC",
+  "short_name": "Annales+",
+  "description": "Sujets d'entraînement, leçons, quiz du jour, tuteur IA et simulateur d'oral pour les élèves de Côte d'Ivoire.",
+  "lang": "fr",
+  "dir": "ltr",
+  "start_url": "/accueil?source=app",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f1e3",
+  "theme_color": "#e8772e",
+  "categories": ["education"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Quiz du jour", "url": "/quiz", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Leçons", "url": "/lecons", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Professeur IA", "url": "/ia", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
