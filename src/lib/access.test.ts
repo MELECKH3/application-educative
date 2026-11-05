@@ -10,7 +10,7 @@ it('ouvre 3 jours d’essai complet à partir de la création du profil', () => 
   expect(planOf(a)).toBe('trimestriel')
 })
 
-it('passe au forfait gratuit de 30 min/jour après l’essai', () => {
+it('passe au forfait gratuit de 40 min/jour après l’essai', () => {
   const now = new Date('2026-11-09T15:00:00Z')
   const a = accessFrom(start, null, now, {
     minutesOffertes: null,
@@ -18,15 +18,15 @@ it('passe au forfait gratuit de 30 min/jour après l’essai', () => {
   })
   expect(a).toMatchObject({
     status: 'gratuit',
-    minutesParJour: 30,
+    minutesParJour: 40,
     offert: false,
-    secondesRestantes: 1200,
+    secondesRestantes: 1800,
     reprise: '2026-11-10T00:00:00.000Z',
   })
   expect(limitesFor(a).oral).toBe(false)
 })
 
-it('donne 40 min/jour seulement quand l’admin a activé le forfait', () => {
+it('garde 40 min/jour quand l’admin a activé le forfait élargi', () => {
   const a = accessFrom(start, null, new Date(start.getTime() + 9 * DAY), {
     minutesOffertes: 40,
     secondesUtilisees: 30 * 60,
@@ -37,7 +37,7 @@ it('donne 40 min/jour seulement quand l’admin a activé le forfait', () => {
 it('bloque quand le temps gratuit du jour est épuisé', () => {
   const a = accessFrom(start, null, new Date(start.getTime() + 9 * DAY), {
     minutesOffertes: null,
-    secondesUtilisees: 30 * 60,
+    secondesUtilisees: 40 * 60,
   })
   expect(a.status).toBe('bloque')
 })

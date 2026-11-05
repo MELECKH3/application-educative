@@ -297,26 +297,39 @@ export function Connexion() {
                 <Input
                   name="email"
                   type="email"
-                  autoComplete="email"
+                  inputMode="email"
+                  autoComplete="username"
+                  placeholder="ton-adresse@gmail.com"
                   required
                   className="min-h-11"
                 />
               </label>
             )}
             {mode !== 'forgot' && (
-              <label className="block space-y-2 font-semibold">
-                Mot de passe
-                <Input
-                  name="password"
-                  type="password"
-                  minLength={mode === 'login' ? undefined : 8}
-                  autoComplete={
-                    mode === 'login' ? 'current-password' : 'new-password'
-                  }
-                  required
-                  className="min-h-11"
-                />
-              </label>
+              <>
+                <label className="block space-y-2 font-semibold">
+                  Mot de passe
+                  <Input
+                    name="password"
+                    type="password"
+                    minLength={mode === 'login' ? undefined : 8}
+                    autoComplete={
+                      mode === 'login' ? 'current-password' : 'new-password'
+                    }
+                    placeholder={
+                      mode === 'login'
+                        ? 'Ton mot de passe Annales+'
+                        : '8 caractères ou plus'
+                    }
+                    required
+                    className="min-h-11"
+                  />
+                </label>
+                <p className="text-sm text-muted-foreground">
+                  Un mot de passe propre à Annales+, différent de celui de ta
+                  messagerie.
+                </p>
+              </>
             )}
             <Button type="submit" className="min-h-11 w-full rounded-full">
               {pending

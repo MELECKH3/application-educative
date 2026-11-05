@@ -67,6 +67,8 @@ function Accueil() {
 
       {data.quiz && <QuizCard quiz={data.quiz} />}
 
+      <SuggestionDuJour />
+
       <InstallAppCard />
 
       <section
@@ -183,6 +185,40 @@ function Accueil() {
         </ul>
       </section>
     </div>
+  )
+}
+
+const CONSEILS: { titre: string; texte: string; lien: '/explorer' | '/lecons' | '/ia' | '/quiz' | '/oral'; cta: string }[] = [
+  { titre: 'Relis puis réécris', texte: 'Relis une leçon 10 minutes, cache-la, puis réécris les 3 idées principales de mémoire.', lien: '/lecons', cta: 'Ouvrir mes leçons' },
+  { titre: 'Un sujet, un chrono', texte: 'Fais un sujet de ton niveau préféré en temps réel, sans corriger en cours de route.', lien: '/explorer', cta: 'Choisir un sujet' },
+  { titre: 'Le quiz sans faute', texte: 'Joue le quiz du jour : 10 questions rapides valent mieux qu’une heure passive.', lien: '/quiz', cta: 'Jouer le quiz' },
+  { titre: 'Explique à voix haute', texte: 'Explique la dernière notion apprise comme à un ami : ce que tu bloques, demande-le au tuteur.', lien: '/ia', cta: 'Demander au tuteur' },
+  { titre: '5 minutes d’oral', texte: 'Présente un thème 2 minutes dans la langue étudiée, puis écoute-toi et recommence.', lien: '/oral', cta: 'Lancer l’oral' },
+]
+
+function SuggestionDuJour() {
+  const jour = new Date().getDate()
+  const conseil = CONSEILS[jour % CONSEILS.length]
+  return (
+    <section
+      aria-labelledby="suggestion-jour"
+      className="flex flex-col gap-3 rounded-2xl border border-dashed border-primary/50 bg-card p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div>
+        <p className="text-sm font-semibold text-secondary">Suggestion du jour</p>
+        <h2 id="suggestion-jour" className="mt-1 font-display text-xl font-extrabold">
+          {conseil.titre}
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">{conseil.texte}</p>
+      </div>
+      <Link
+        to={conseil.lien}
+        className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-bold text-primary-foreground"
+      >
+        {conseil.cta}
+        <ArrowRight className="size-4" aria-hidden="true" />
+      </Link>
+    </section>
   )
 }
 

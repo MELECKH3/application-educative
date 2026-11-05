@@ -148,6 +148,12 @@ function LeconsPage() {
           exercice à toi, les pièges), avec une question de vérification après
           chaque temps. Dès que tu as fini : le test de fin de leçon.
         </p>
+        <p className="mt-3 rounded-2xl bg-muted p-4 text-sm text-muted-foreground">
+          Méthode qui marche : lis un temps, réponds à sa question de
+          vérification sans tricher, puis fais l’exercice « À toi de jouer »
+          avant de passer à la suite. Le test final débloque la révision
+          J+1 / J+3 / J+7.
+        </p>
       </section>
 
       {data.due.length > 0 && (

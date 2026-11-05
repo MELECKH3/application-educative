@@ -1,7 +1,8 @@
 import { useStudent } from '@/hooks/use-student'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { useState } from 'react'
 import { z } from 'zod'
-import { Crown } from 'lucide-react'
+import { Crown, Search, X } from 'lucide-react'
 import { ExempleBadge, LevelPill } from '@/components/app/brand'
 import { cn } from '@/lib/utils'
 import { getClassSujets } from '@/lib/sujets.functions'
@@ -12,6 +13,7 @@ const searchSchema = z.object({
   matiere: z.string().optional(),
   niveau: z.coerce.number().int().min(1).max(4).optional().catch(undefined),
   page: z.coerce.number().int().min(0).max(1000).optional().catch(undefined),
+  q: z.string().max(80).optional().catch(undefined),
 })
 
 export const Route = createFileRoute('/_app/explorer')({
@@ -44,15 +46,26 @@ export const Route = createFileRoute('/_app/explorer')({
 })
 
 function Explorer() {
-  const { matiere, niveau, page = 0 } = Route.useSearch()
+  const { matiere, niveau, page = 0, q } = Route.useSearch()
   const s = useStudent()
+  const navigate = useNavigate({ from: '/explorer' })
   const data = Route.useLoaderData()
   const matieres = data.matieres
-  const list = [...data.sujets].sort(
-    (a, b) =>
-      Number(b.niveau === s.niveauPrefere) -
-      Number(a.niveau === s.niveauPrefere),
-  )
+  const [recherche, setRecherche] = useState(q ?? '')
+  const termes = (q ?? '').trim().toLowerCase().split(/\s+/).filter(Boolean)
+  const filtresActifs = Boolean(matiere || niveau || (q ?? '').trim())
+  const list = [...data.sujets]
+    .filter((x) => {
+      if (termes.length === 0) return true
+      const m = matieres.find((mm) => mm.id === x.matiere)
+      const texte = `${x.titre} ${x.chapitre} ${m?.nom ?? ''}`.toLowerCase()
+      return termes.every((t) => texte.includes(t))
+    })
+    .sort(
+      (a, b) =>
+        Number(b.niveau === s.niveauPrefere) -
+        Number(a.niveau === s.niveauPrefere),
+    )
 
   return (
     <div className="space-y-6">
@@ -71,30 +84,103 @@ function Explorer() {
         matiere={matieres.find((m) => m.id === matiere)?.nom}
       />
 
+      <form
+        role="search"
+        aria-label="Rechercher un sujet"
+        className="flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault()
+          void navigate({
+            search: (prev) => ({
+              ...prev,
+              q: recherche.trim() || undefined,
+              page: undefined,
+            }),
+          })
+        }}
+      >
+        <label htmlFor="recherche-sujet" className="sr-only">
+          Rechercher par titre, chapitre ou matière
+        </label>
+        <div className="relative flex-1">
+          <Search
+            className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <input
+            id="recherche-sujet"
+            type="search"
+            value={recherche}
+            onChange={(e) => setRecherche(e.target.value)}
+            placeholder="Rechercher : « équations », « photosynthèse »…"
+            autoComplete="off"
+            className="min-h-11 w-full rounded-full border border-border bg-card pr-10 pl-11 text-sm font-medium placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+          />
+          {recherche && (
+            <button
+              type="button"
+              aria-label="Effacer la recherche"
+              className="absolute top-1/2 right-2 grid size-9 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:text-foreground"
+              onClick={() => {
+                setRecherche('')
+                void navigate({
+                  search: (prev) => ({ ...prev, q: undefined, page: undefined }),
+                })
+              }}
+            >
+              <X className="size-4" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+        <button
+          type="submit"
+          className="min-h-11 shrink-0 rounded-full bg-ink px-5 text-sm font-bold text-ink-foreground"
+        >
+          Chercher
+        </button>
+      </form>
+      {(q ?? '').trim() && (
+        <p className="text-sm text-muted-foreground" role="status">
+          {list.length} résultat{list.length > 1 ? 's' : ''} pour « {q!.trim()} »
+          {filtresActifs && (
+            <>
+              {' · '}
+              <Link
+                from="/explorer"
+                search={{}}
+                className="font-semibold text-primary underline"
+              >
+                Tout réinitialiser
+              </Link>
+            </>
+          )}
+        </p>
+      )}
+
       <div className="space-y-3">
         <FilterRow label="Matière">
-          <Chip active={!matiere} to={{ matiere: undefined, niveau }}>
+          <Chip active={!matiere} to={{ matiere: undefined, niveau, q }}>
             Toutes
           </Chip>
           {matieres.map((m) => (
             <Chip
               key={m.id}
               active={matiere === m.id}
-              to={{ matiere: m.id, niveau }}
+              to={{ matiere: m.id, niveau, q }}
             >
               <span aria-hidden="true">{m.emoji}</span> {m.nom}
             </Chip>
           ))}
         </FilterRow>
         <FilterRow label="Niveau">
-          <Chip active={!niveau} to={{ matiere, niveau: undefined }}>
+          <Chip active={!niveau} to={{ matiere, niveau: undefined, q }}>
             Tous
           </Chip>
           {LEVELS.map((l) => (
             <Chip
               key={l.n}
               active={niveau === l.n}
-              to={{ matiere, niveau: l.n }}
+              to={{ matiere, niveau: l.n, q }}
             >
               {l.n}. {l.label}
               {l.n === s.niveauPrefere && (
@@ -173,7 +259,7 @@ function Explorer() {
           {page > 0 ? (
             <Link
               from="/explorer"
-              search={{ matiere, niveau, page: page - 1 || undefined }}
+              search={{ matiere, niveau, q, page: page - 1 || undefined }}
               className="inline-flex min-h-11 items-center rounded-full border border-border px-5 text-sm font-semibold"
             >
               ← Plus récents
@@ -184,7 +270,7 @@ function Explorer() {
           {data.hasMore && (
             <Link
               from="/explorer"
-              search={{ matiere, niveau, page: page + 1 }}
+              search={{ matiere, niveau, q, page: page + 1 }}
               className="inline-flex min-h-11 items-center rounded-full border border-border px-5 text-sm font-semibold"
             >
               Plus anciens →
@@ -220,7 +306,7 @@ function Chip({
   children,
 }: {
   active: boolean
-  to: { matiere?: string; niveau?: number; page?: number }
+  to: { matiere?: string; niveau?: number; page?: number; q?: string }
   children: React.ReactNode
 }) {
   return (

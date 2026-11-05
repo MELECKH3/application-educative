@@ -31,7 +31,6 @@ import { BillingSummary } from '@/components/app/billing-summary'
 import { getBilling, submitPayment } from '@/lib/billing.functions'
 import { useNow } from '@/hooks/use-now'
 import {
-  ADMIN_FREE_MINUTES_PER_DAY,
   FREE_MINUTES_PER_DAY,
   OFFERS,
   RECEIPT_NAMES_LABEL,
@@ -148,13 +147,28 @@ function PremiumPage() {
         <PlanComparison />
 
         <BillingSummary billing={billing} />
-        <p className="mt-5 text-sm text-muted-foreground">
-          Paie par Wave ou Orange Money, puis envoie la capture de ton reçu :
-          elle doit porter le nom du bénéficiaire{' '}
-          <strong>{RECEIPT_NAMES_LABEL}</strong>.
-          Pour payer en espèces sur place, présente ton identifiant de compte à
-          l’administrateur.
-        </p>
+        <section
+          aria-label="Avant d’envoyer ton reçu"
+          className="mt-5 rounded-2xl border border-border bg-card p-5 shadow-sm"
+        >
+          <h2 className="font-display text-lg font-extrabold">
+            Avant d’envoyer ton reçu, vérifie ces 3 points
+          </h2>
+          <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
+            <li>
+              Le nom du bénéficiaire est bien{' '}
+              <strong className="text-foreground">{RECEIPT_NAMES_LABEL}</strong>{' '}
+              (tout autre nom sera refusé).
+            </li>
+            <li>Le montant correspond à l’offre choisie (1 500 ou 2 500 FCFA).</li>
+            <li>La capture est nette : montant, date et nom bien lisibles.</li>
+          </ol>
+          <p className="mt-3 text-sm text-muted-foreground">
+            Paie par Wave ou Orange Money, puis envoie la capture ici même. Pour
+            payer en espèces sur place, présente ton identifiant de compte à
+            l’administrateur.
+          </p>
+        </section>
 
         <div className="mt-6 grid gap-5 md:grid-cols-2">
           {OFFERS.map((o) => (
