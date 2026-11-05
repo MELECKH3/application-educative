@@ -325,7 +325,7 @@ it('refuse un reçu qui ne porte pas le nom du bénéficiaire, sans enregistrer 
     submitPayment({
       data: { offerId: 'mensuel', method: 'Wave', reference: 'ABC123', receipt },
     }),
-  ).rejects.toThrow('ADOU MELCHI ou ADOU MELECKH')
+  ).rejects.toThrow('ADOU MELCHI, ADOU MELECK ou ADOU MELECKH')
   expect(connect).not.toHaveBeenCalled()
   expect(recu.saveReceipt).not.toHaveBeenCalled()
 })

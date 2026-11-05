@@ -58,7 +58,6 @@ const MODULES = [
   { id: 'tableau', label: 'Tableau de bord', icon: BarChart3 },
   { id: 'abonnements', label: 'Abonnements', icon: Users },
   { id: 'deblocages', label: 'Déblocages manuels', icon: Gift },
-  { id: 'forfait40', label: 'Forfait gratuit 40 min', icon: Timer },
   { id: 'sujets', label: 'Sujets', icon: FileText },
   { id: 'lecons', label: 'Leçons', icon: BookOpen },
   { id: 'quiz', label: 'Quiz du jour', icon: ClipboardList },
@@ -254,7 +253,6 @@ export function AdminModules() {
         {active === 'tableau' && <Dashboard />}
         {active === 'abonnements' && <Subscriptions />}
         {active === 'deblocages' && <Unlocks />}
-        {active === 'forfait40' && <FreeGrants />}
         {active === 'sujets' && <Subjects />}
         {active === 'lecons' && <Lessons />}
         {active === 'quiz' && <Quizzes />}
@@ -286,7 +284,6 @@ function Dashboard() {
           <Stat label="Expirent sous 7 j" value={data.expirent7} />
           <Stat label="En essai gratuit" value={data.enEssai} />
           <Stat label="Au forfait gratuit (essai fini, non payé)" value={data.bloques} />
-          <Stat label="Forfaits 40 min/jour actifs" value={data.forfaits40} />
           <Stat label="Revenus du mois" value={fcfa(data.revenusMois)} />
           <Stat label="Revenus totaux" value={fcfa(data.revenusTotal)} />
           <Stat label="Paiements en attente" value={data.paiementsAttente} />

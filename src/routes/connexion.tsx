@@ -174,15 +174,21 @@ export function Connexion() {
           try {
             await login(email, password)
           } catch (error) {
-            // Compte créé autrefois mais jamais confirmé : on l'active directement.
             const detail =
               error instanceof AuthError ? error.message.toLowerCase() : ''
-            if (
-              !detail.includes('not confirmed') &&
-              !detail.includes('not verified')
-            )
-              throw error
+            const unconfirmed =
+              detail.includes('not confirmed') || detail.includes('not verified')
+            // Connexion en une étape : adresse inconnue → le compte est créé tout de suite ;
+            // compte créé autrefois mais jamais confirmé → il est activé directement.
+            const unknown = detail.includes('invalid') && password.length >= 8
+            if (!unconfirmed && !unknown) throw error
             const activated = await createAccount({ data: { email, password } })
+            if (activated.status === 'closed' && unknown) {
+              setError(
+                'Les inscriptions sont momentanément fermées. Réessaie un peu plus tard.',
+              )
+              return
+            }
             if (activated.status !== 'created') throw error
             await login(email, password)
           }
@@ -245,9 +251,43 @@ export function Connexion() {
         {(mode === 'login' || mode === 'signup') && (
           <p className="rounded-2xl bg-muted p-4 text-sm text-muted-foreground">
             {mode === 'login'
-              ? 'Première visite ? Choisis « Créer un compte » ci-dessous. Le mot de passe demandé est celui d’Annales+, pas celui de ta boîte Gmail.'
+              ? 'Première visite ? Entre simplement ton Gmail et choisis un mot de passe (8 caractères ou plus) : ton compte est créé tout de suite. Le mot de passe est celui d’Annales+, pas celui de ta boîte Gmail.'
               : 'Choisis un mot de passe d’au moins 8 caractères, différent de celui de ta boîte Gmail.'}
           </p>
+        )}
+        {google && (mode === 'login' || mode === 'signup') && (
+          <>
+            <Button
+              className="min-h-11 w-full rounded-full"
+              disabled={!ready || pending || !google}
+              onClick={async () => {
+                setPending(true)
+                setError('')
+                try {
+                  sessionStorage.setItem('annales-retour', retour)
+                  oauthLogin('google')
+                } catch (error) {
+                  if (
+                    error instanceof AuthError &&
+                    error.message === 'Redirecting to OAuth provider'
+                  )
+                    return
+                  setError('La connexion Google a échoué. Réessaie.')
+                  setPending(false)
+                }
+              }}
+            >
+              {!ready
+                ? 'Chargement…'
+                : pending
+                  ? 'Connexion en cours…'
+                  : 'Continuer avec Google'}
+            </Button>
+            <p className="text-center text-sm text-muted-foreground">
+              Un clic avec ton compte Gmail, sans mot de passe à retenir. Ou
+              bien :
+            </p>
+          </>
         )}
         <form onSubmit={submit} className="space-y-4">
           <fieldset disabled={pending || !ready} className="space-y-4">
@@ -293,39 +333,6 @@ export function Connexion() {
             </Button>
           </fieldset>
         </form>
-        {google && mode === 'login' && (
-          <>
-            <p className="text-center text-sm text-muted-foreground">
-              ou connecte-toi avec Google
-            </p>
-            <Button
-              className="min-h-11 w-full rounded-full"
-              disabled={!ready || pending || !google}
-              onClick={async () => {
-                setPending(true)
-                setError('')
-                try {
-                  sessionStorage.setItem('annales-retour', retour)
-                  oauthLogin('google')
-                } catch (error) {
-                  if (
-                    error instanceof AuthError &&
-                    error.message === 'Redirecting to OAuth provider'
-                  )
-                    return
-                  setError('La connexion Google a échoué. Réessaie.')
-                  setPending(false)
-                }
-              }}
-            >
-              {!ready
-                ? 'Chargement…'
-                : pending
-                  ? 'Connexion en cours…'
-                  : 'Continuer avec Google'}
-            </Button>
-          </>
-        )}
         {error && (
           <p role="alert" className="text-sm text-destructive">
             {error}

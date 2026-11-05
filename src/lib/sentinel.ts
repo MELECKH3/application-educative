@@ -1,3 +1,4 @@
+import { RECEIPT_NAMES_LABEL } from './config'
 // Sentinelle des paiements : règles pures (testées) appliquées à chaque déclaration.
 // Les signaux s'appuient uniquement sur des faits de la base, jamais sur des suppositions.
 
@@ -37,6 +38,11 @@ export type PaymentFacts = {
   ageCompteMinutes: number
   /** Jours de Premium encore actifs au moment de la déclaration. */
   joursPremiumRestants: number
+  /**
+   * Nom du bénéficiaire lu sur le reçu (ADOU MELCHI, ADOU MELECK ou ADOU MELECKH) :
+   * true = conforme, false = autre nom, null/absent = reçu non lu (paiement sans capture ou analyse indisponible).
+   */
+  beneficiaireOk?: boolean | null
 }
 
 const POIDS: Record<Gravite, number> = { haute: 50, moyenne: 20, basse: 8 }
@@ -57,6 +63,16 @@ export function analysePayment(f: PaymentFacts): Verdict {
     motifs.push({
       gravite: 'haute',
       texte: 'ID de transaction déjà déclaré sous une autre écriture.',
+    })
+  if (f.beneficiaireOk === false)
+    motifs.push({
+      gravite: 'haute',
+      texte: `Le reçu ne porte pas le nom ${RECEIPT_NAMES_LABEL}.`,
+    })
+  else if (f.beneficiaireOk === null)
+    motifs.push({
+      gravite: 'moyenne',
+      texte: `Nom du bénéficiaire non lu : vérifie qu’il s’agit de ${RECEIPT_NAMES_LABEL}.`,
     })
   if (referenceFactice(f.reference))
     motifs.push({ gravite: 'haute', texte: 'ID de transaction qui semble inventé.' })

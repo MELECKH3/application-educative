@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { SupportContacts } from '@/components/app/support-contacts'
 import {
   ArrowRight,
   BookOpenCheck,
@@ -286,6 +287,7 @@ function Landing() {
               client WhatsApp
             </a>
           </div>
+          <SupportContacts compact />
         </div>
       </footer>
     </div>

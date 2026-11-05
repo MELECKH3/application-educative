@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { SupportContacts } from '@/components/app/support-contacts'
 import { logout } from '@netlify/identity'
 import { useEffect, useState } from 'react'
 import {
@@ -158,6 +159,7 @@ function Profil() {
             aria-hidden="true"
           />
         </a>
+        <SupportContacts className="px-3 py-2" />
       </section>
 
       <section className="rounded-2xl border border-border bg-card p-2 shadow-sm">

@@ -11,7 +11,7 @@ export const onlinePaymentSchema = z.object({
     .trim()
     .regex(/^[A-Za-z0-9.\-_]{6,40}$/, 'Indique un ID de transaction valide.')
     .transform((s) => s.toUpperCase()),
-  // Capture du reçu, obligatoire : elle doit porter le nom du bénéficiaire (Adou Melchi / Adou Meleckh).
+  // Capture du reçu, obligatoire : elle doit porter le nom du bénéficiaire (Adou Melchi / Adou Meleck / Adou Meleckh).
   receipt: receiptImageSchema,
 })
 export const reviewPaymentSchema = z
