@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
+import { SupportContacts } from '@/components/app/support-contacts'
 import { useEffect, useState } from 'react'
 import { logout } from '@netlify/identity'
 import { z } from 'zod'
@@ -30,10 +31,10 @@ import { BillingSummary } from '@/components/app/billing-summary'
 import { getBilling, submitPayment } from '@/lib/billing.functions'
 import { useNow } from '@/hooks/use-now'
 import {
-  ADMIN_FREE_MINUTES_PER_DAY,
   FREE_MINUTES_PER_DAY,
   OFFERS,
-  RECEIPT_NAMES,
+  RECEIPT_NAMES_LABEL,
+  VIP_WELCOME_DAYS,
   WAVE_NUMBER,
   WHATSAPP_DISPLAY,
   WHATSAPP_URL,
@@ -146,13 +147,28 @@ function PremiumPage() {
         <PlanComparison />
 
         <BillingSummary billing={billing} />
-        <p className="mt-5 text-sm text-muted-foreground">
-          Paie par Wave ou Orange Money, puis envoie la capture de ton reçu :
-          elle doit porter le nom du bénéficiaire{' '}
-          <strong>{RECEIPT_NAMES.map((n) => n.toUpperCase()).join(' ou ')}</strong>.
-          Pour payer en espèces sur place, présente ton identifiant de compte à
-          l’administrateur.
-        </p>
+        <section
+          aria-label="Avant d’envoyer ton reçu"
+          className="mt-5 rounded-2xl border border-border bg-card p-5 shadow-sm"
+        >
+          <h2 className="font-display text-lg font-extrabold">
+            Avant d’envoyer ton reçu, vérifie ces 3 points
+          </h2>
+          <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
+            <li>
+              Le nom du bénéficiaire est bien{' '}
+              <strong className="text-foreground">{RECEIPT_NAMES_LABEL}</strong>{' '}
+              (tout autre nom sera refusé).
+            </li>
+            <li>Le montant correspond à l’offre choisie (1 500 ou 2 500 FCFA).</li>
+            <li>La capture est nette : montant, date et nom bien lisibles.</li>
+          </ol>
+          <p className="mt-3 text-sm text-muted-foreground">
+            Paie par Wave ou Orange Money, puis envoie la capture ici même. Pour
+            payer en espèces sur place, présente ton identifiant de compte à
+            l’administrateur.
+          </p>
+        </section>
 
         <div className="mt-6 grid gap-5 md:grid-cols-2">
           {OFFERS.map((o) => (
@@ -181,6 +197,7 @@ function PremiumPage() {
               le service client ({WHATSAPP_DISPLAY})
             </a>
           </Button>
+          <SupportContacts compact className="flex justify-center" />
           {expired && (
             <div className="flex gap-4 text-sm text-muted-foreground">
               {billing && (
@@ -250,8 +267,8 @@ function PlanComparison() {
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Le Trimestriel te fait économiser {formatFcfa(economie)} par rapport à 3 mois en Mensuel, soit moins de{' '}
-        {Math.ceil(trimestriel.price / trimestriel.days)} FCFA par jour. Le forfait de {ADMIN_FREE_MINUTES_PER_DAY} min/jour
-        est réservé aux élèves choisis par l’administrateur.
+        {Math.ceil(trimestriel.price / trimestriel.days)} FCFA par jour. Sans abonnement, après les {VIP_WELCOME_DAYS} jours d’essai, tu gardes
+        {' '}{FREE_MINUTES_PER_DAY} min/jour avec des fonctions limitées.
       </p>
       <div className="mt-4 overflow-x-auto">
         <table className="w-full min-w-[30rem] text-sm">
@@ -395,7 +412,7 @@ function ReceiptDialog({
     ReturnType<typeof compressImage>
   > | null>(null)
   const valid = /^[A-Za-z0-9.\-_]{6,40}$/.test(txId.trim()) && !!image
-  const noms = RECEIPT_NAMES.map((n) => n.toUpperCase()).join(' ou ')
+  const noms = RECEIPT_NAMES_LABEL
   const message = offer
     ? `Bonjour, j’ai payé l’offre Annales+ ${offer.label} (${formatFcfa(offer.price)} – ${offer.durationLabel}) par ${method}. Dossier : ${saved?.id ?? ''}. ID de transaction : ${txId.trim().toUpperCase()}.`
     : ''

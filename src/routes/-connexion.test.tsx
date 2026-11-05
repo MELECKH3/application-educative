@@ -29,6 +29,7 @@ vi.mock('@tanstack/react-router', () => ({
 }))
 import { AuthError } from '@netlify/identity'
 import { Connexion } from './connexion'
+import { ADMIN_EMAIL } from '@/lib/config'
 const location = {
   hash: '',
   pathname: '/connexion',
@@ -230,6 +231,9 @@ it('signale une indisponibilité du service sans afficher de diagnostic interne'
 
 it('explique le mot de passe Annales+ après des identifiants refusés', async () => {
   auth.login.mockRejectedValue(new AuthError('Invalid login credentials'))
+  auth.signup.mockRejectedValue(
+    new AuthError('A user with this email address has already been registered'),
+  )
   const user = await ready()
   await credentials(user)
   await user.click(screen.getByRole('button', { name: 'Me connecter' }))
@@ -241,11 +245,97 @@ it('explique le mot de passe Annales+ après des identifiants refusés', async (
 })
 it('explique comment débloquer une adresse non confirmée', async () => {
   auth.login.mockRejectedValue(new AuthError('Email not confirmed'))
+  auth.signup.mockRejectedValue(new AuthError('Erreur réseau'))
   const user = await ready()
   await credentials(user)
   await user.click(screen.getByRole('button', { name: 'Me connecter' }))
   expect(screen.getByRole('alert')).toHaveTextContent('Confirme ton adresse')
   expect(screen.getByRole('alert')).toHaveTextContent('courriers indésirables')
+})
+it('renvoie le lien de confirmation quand le compte ne peut pas être activé tout de suite', async () => {
+  auth.login.mockRejectedValue(
+    new AuthError('invalid_grant: Email not confirmed'),
+  )
+  auth.signup.mockResolvedValue({ confirmedAt: null })
+  const user = await ready()
+  await credentials(user)
+  await user.click(screen.getByRole('button', { name: 'Me connecter' }))
+  expect(auth.signup).toHaveBeenCalledWith('eleve@example.com', password)
+  expect(screen.getByRole('status')).toHaveTextContent('Spam')
+  expect(location.assign).not.toHaveBeenCalled()
+})
+it('connexion admin sans compte confirmé : envoie le lien au lieu de dire « mot de passe incorrect »', async () => {
+  auth.login.mockRejectedValue(
+    new AuthError(
+      'invalid_grant: No user found with that email, or password invalid.',
+    ),
+  )
+  auth.signup.mockResolvedValue({ confirmedAt: null })
+  const user = await ready()
+  await user.type(screen.getByLabelText('Adresse e-mail'), ADMIN_EMAIL)
+  await user.type(screen.getByLabelText('Mot de passe'), password)
+  await user.click(screen.getByRole('button', { name: 'Me connecter' }))
+  expect(createAccount).toHaveBeenCalled()
+  expect(auth.signup).toHaveBeenCalledWith(ADMIN_EMAIL, password)
+  expect(screen.getByRole('status')).toHaveTextContent(
+    'console d’administration',
+  )
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
+it('connexion admin avec un compte confirmé et un mauvais mot de passe', async () => {
+  auth.login.mockRejectedValue(
+    new AuthError(
+      'invalid_grant: No user found with that email, or password invalid.',
+    ),
+  )
+  auth.signup.mockRejectedValue(
+    new AuthError('A user with this email address has already been registered'),
+  )
+  const user = await ready()
+  await user.type(screen.getByLabelText('Adresse e-mail'), ADMIN_EMAIL)
+  await user.type(screen.getByLabelText('Mot de passe'), password)
+  await user.click(screen.getByRole('button', { name: 'Me connecter' }))
+  expect(screen.getByRole('alert')).toHaveTextContent('Mot de passe oublié')
+  expect(location.assign).not.toHaveBeenCalled()
+})
+it('connecte l’admin et l’envoie sur la console', async () => {
+  auth.getUser
+    .mockResolvedValueOnce(null)
+    .mockResolvedValue({ email: ADMIN_EMAIL, confirmedAt: '2026-11-05' })
+  const user = await ready()
+  await user.type(screen.getByLabelText('Adresse e-mail'), ADMIN_EMAIL)
+  await user.type(screen.getByLabelText('Mot de passe'), password)
+  await user.click(screen.getByRole('button', { name: 'Me connecter' }))
+  expect(location.assign).toHaveBeenCalledWith('/admin')
+})
+it('après confirmation, l’admin choisit son propre mot de passe', async () => {
+  auth.handleAuthCallback.mockResolvedValue({
+    type: 'confirmation',
+    user: { email: ADMIN_EMAIL, confirmedAt: '2026-11-05' },
+  })
+  auth.getUser.mockResolvedValue({
+    email: ADMIN_EMAIL,
+    confirmedAt: '2026-11-05',
+  })
+  render(<Connexion />)
+  const button = await screen.findByRole('button', {
+    name: 'Enregistrer le mot de passe',
+  })
+  expect(location.replace).not.toHaveBeenCalled()
+  const user = userEvent.setup()
+  await user.type(screen.getByLabelText('Mot de passe'), password)
+  await user.click(button)
+  expect(auth.updateUser).toHaveBeenCalledWith({ password })
+  expect(location.assign).toHaveBeenCalledWith('/admin')
+})
+it('explique qu’un lien e-mail expiré doit être redemandé', async () => {
+  location.hash = '#confirmation_token=perime'
+  auth.handleAuthCallback.mockRejectedValue(new AuthError('Token expired'))
+  render(<Connexion />)
+  expect(await screen.findByRole('alert')).toHaveTextContent('expiré')
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Me connecter' })).toBeEnabled(),
+  )
 })
 
 it('renouvelle une session expirée avant de rouvrir la page demandée', async () => {

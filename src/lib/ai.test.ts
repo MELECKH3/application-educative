@@ -211,7 +211,7 @@ it('bloque l’IA quand le temps gratuit du jour est épuisé sans abonnement', 
   const old = String(Date.now() - 8 * 86_400_000)
   h.sql.mockImplementation(async (query: string) =>
     query.includes('created_ms')
-      ? [{ created_ms: old, expires_ms: null, granted: null, seconds: 1800, now_ms: String(Date.now()) }]
+      ? [{ created_ms: old, expires_ms: null, granted: null, seconds: 2400, now_ms: String(Date.now()) }]
       : query.includes('FROM profiles')
         ? [{ first_name: 'K', classe: '3e', serie: '', pays: 'CI', niveau_prefere: 2 }]
         : [],

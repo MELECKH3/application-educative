@@ -6,7 +6,7 @@ import {
 
 // Accès à l'application, toujours calculé par le serveur (horloge de la base) :
 // - 3 jours d'essai complet à l'inscription ;
-// - puis forfait gratuit limité : 30 min/jour (40 min/jour seulement si l'admin l'a activé pour l'élève) ;
+// - puis forfait gratuit limité : 40 min/jour pour chaque élève qui ne paie pas ;
 // - temps du jour épuisé = blocage jusqu'à minuit (Abidjan = UTC) ou jusqu'au paiement ;
 // - abonnement Premium actif = illimité.
 

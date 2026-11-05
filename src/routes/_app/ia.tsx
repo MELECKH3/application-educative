@@ -370,7 +370,7 @@ export function TutorPage() {
         </div>
       </form>
       <p className="text-center text-xs text-muted-foreground">
-        L’IA peut se tromper : vérifie avec ton cours. Elle reste dans le cadre scolaire et ne remplace pas ton professeur.
+        L’IA peut se tromper : vérifie avec ton cours. Astuce : précise ta classe et ce que tu as déjà essayé pour avoir une aide pas à pas. La photo de copie sert à corriger ta réponse, pas à faire l’exercice à ta place.
       </p>
     </div>
   )

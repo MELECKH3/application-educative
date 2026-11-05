@@ -23,8 +23,9 @@ export async function sentinelVerdicts(ids: string[]): Promise<Record<string, Ve
       pending_others: number
       age_min: number
       premium_days: number
+      receipt_check: { nomOk?: boolean; lecture?: unknown } | null
     }
-  >`SELECT p.id, p.user_id, p.offer_id, p.amount, p.reference,
+  >`SELECT p.id, p.user_id, p.offer_id, p.amount, p.reference, p.receipt_check,
       (SELECT array_agg(o.status) FROM payments o WHERE o.id <> p.id
         AND regexp_replace(upper(o.reference), '[^A-Z0-9]', '', 'g') = regexp_replace(upper(p.reference), '[^A-Z0-9]', '', 'g')) AS same,
       (SELECT count(*)::int FROM payments o WHERE o.user_id = p.user_id
@@ -48,6 +49,11 @@ export async function sentinelVerdicts(ids: string[]): Promise<Record<string, Ve
       autresEnAttente: Number(r.pending_others),
       ageCompteMinutes: Number(r.age_min),
       joursPremiumRestants: Number(r.premium_days),
+      beneficiaireOk: !r.receipt_check
+        ? undefined
+        : r.receipt_check.lecture
+          ? r.receipt_check.nomOk === true
+          : null,
     })
   return out
 }

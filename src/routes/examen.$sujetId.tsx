@@ -256,8 +256,8 @@ function ExamPage() {
                   aria-live="polite"
                 >
                   {lastSave
-                    ? `Sauvegardée à ${lastSave.toLocaleTimeString('fr-FR')}`
-                    : 'Sauvegarde automatique activée'}
+                    ? `Sauvegardée à ${lastSave.toLocaleTimeString('fr-FR')} · ne ferme pas l’onglet avant la fin`
+                    : 'Sauvegarde automatique toutes les 10 secondes'}
                 </span>
               </div>
               <label htmlFor="copie-texte" className="sr-only">

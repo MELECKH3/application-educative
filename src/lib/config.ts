@@ -4,14 +4,23 @@
 export const WAVE_NUMBER = '0712600858'
 export const WHATSAPP_URL = 'https://wa.me/2250712600858'
 export const WHATSAPP_DISPLAY = '07 12 60 08 58'
+/** Service client : WhatsApp/Wave et second numéro d'appel. */
+export const SUPPORT_PHONES = [
+  { display: '07 12 60 08 58', tel: '+2250712600858', whatsapp: WHATSAPP_URL },
+  { display: '+225 01 71 55 12 45', tel: '+2250171551245', whatsapp: 'https://wa.me/2250171551245' },
+] as const
 export const ADMIN_EMAIL = 'tablechaisse926@gmail.com'
 
-/** Forfait gratuit standard (sans intervention de l'admin) : 30 min/jour, fonctions limitées. */
-export const FREE_MINUTES_PER_DAY = 30
-/** Forfait gratuit élargi : 40 min/jour, activable uniquement par l'administrateur pour un élève. */
+/** Forfait gratuit (après les 3 jours d'essai, sans paiement) : 40 min/jour, fonctions limitées. */
+export const FREE_MINUTES_PER_DAY = 40
+/** Ancien forfait élargi activé par l'admin : désormais identique au forfait de tous les élèves. */
 export const ADMIN_FREE_MINUTES_PER_DAY = 40
 /** Bénéficiaire qui doit figurer sur chaque reçu Wave / Orange Money. */
-export const RECEIPT_NAMES = ['Adou Melchi', 'Adou Meleckh'] as const
+export const RECEIPT_NAMES = ['Adou Melchi', 'Adou Meleck', 'Adou Meleckh'] as const
+/** « ADOU MELCHI, ADOU MELECK ou ADOU MELECKH » */
+export const RECEIPT_NAMES_LABEL = RECEIPT_NAMES.map((n) => n.toUpperCase())
+  .join(', ')
+  .replace(/, ([^,]*)$/, ' ou $1')
 export const VIP_WELCOME_DAYS = 3
 export const EXAM_SAS_MINUTES = 10
 export const REFRESH_EVERY_DAYS = 1

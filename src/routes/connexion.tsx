@@ -41,6 +41,33 @@ export const Route = createFileRoute('/connexion')({
   }),
   component: Connexion,
 })
+/** Message affiché quand Identity vient d'envoyer le lien de confirmation. */
+function confirmationSent(email: string) {
+  return email.toLowerCase() === ADMIN_EMAIL
+    ? `Lien envoyé à ${email}. Ouvre-le depuis ta boîte Gmail (regarde aussi Spam et Promotions) : tu choisiras ton mot de passe et tu arriveras directement sur la console d’administration.`
+    : 'Consulte ta boîte e-mail (regarde aussi Spam et Promotions) et ouvre le lien reçu : il confirme ton adresse et ouvre ton compte.'
+}
+
+/**
+ * Inscription classique, utilisée quand la création instantanée n'est pas possible
+ * (adresse administrateur). `exists` : compte déjà confirmé, donc mauvais mot de passe ;
+ * `failed` : envoi impossible, l'erreur de connexion d'origine est affichée.
+ */
+async function sendConfirmationLink(email: string, password: string) {
+  try {
+    const user = await signup(email, password)
+    return user?.confirmedAt ? ('confirmed' as const) : ('sent' as const)
+  } catch (error) {
+    const detail = error instanceof Error ? error.message.toLowerCase() : ''
+    if (detail.includes('already') && detail.includes('registered'))
+      return 'exists' as const
+    // Trop d'envois rapprochés : l'élève doit le savoir. Sinon, on garde l'erreur de connexion d'origine.
+    if (detail.includes('too many') || detail.includes('rate limit'))
+      throw error
+    return 'failed' as const
+  }
+}
+
 export function Connexion() {
   const { retour } = Route.useSearch()
   const [mode, setMode] = useState<
@@ -58,6 +85,11 @@ export function Connexion() {
     async function init() {
       try {
         const hash = new URLSearchParams(window.location.hash.slice(1))
+        const fromEmailLink = [
+          'confirmation_token',
+          'recovery_token',
+          'invite_token',
+        ].some((key) => hash.has(key))
         if (hash.has('error')) {
           window.history.replaceState(
             null,
@@ -66,8 +98,36 @@ export function Connexion() {
           )
           setError('La connexion a été annulée ou refusée. Tu peux réessayer.')
         }
-        const callback = await handleAuthCallback()
+        let callback: Awaited<ReturnType<typeof handleAuthCallback>>
+        try {
+          callback = await handleAuthCallback()
+        } catch (error) {
+          if (!fromEmailLink) throw error
+          window.history.replaceState(
+            null,
+            '',
+            window.location.pathname + window.location.search,
+          )
+          callback = null
+          if (active)
+            setError(
+              'Ce lien a expiré ou a déjà servi. Connecte-toi, ou demande un nouveau lien avec « Mot de passe oublié ? ».',
+            )
+        }
         if (!active) return
+        // Adresse administrateur confirmée par e-mail : elle choisit son propre mot de passe
+        // (celui saisi à l'inscription a pu être tapé par quelqu'un d'autre).
+        if (
+          callback?.type === 'confirmation' &&
+          callback.user?.email?.toLowerCase() === ADMIN_EMAIL
+        ) {
+          setMode('reset')
+          setMessage(
+            'Adresse confirmée. Choisis maintenant ton mot de passe administrateur.',
+          )
+          setReady(true)
+          return
+        }
         if (callback?.type === 'recovery' || callback?.type === 'invite') {
           setMode(callback.type === 'invite' ? 'invite' : 'reset')
           if (callback.type === 'invite') {
@@ -163,10 +223,7 @@ export function Connexion() {
         }
         const user = await signup(email, password)
         if (user.confirmedAt) window.location.assign(retour)
-        else
-          setMessage(
-            'Consulte ta boîte e-mail et confirme ton adresse avant de te connecter.',
-          )
+        else setMessage(confirmationSent(email))
       } else {
         if (mode === 'invite') await acceptInvite(inviteToken, password)
         else if (mode === 'reset') await updateUser({ password })
@@ -174,16 +231,31 @@ export function Connexion() {
           try {
             await login(email, password)
           } catch (error) {
-            // Compte créé autrefois mais jamais confirmé : on l'active directement.
             const detail =
               error instanceof AuthError ? error.message.toLowerCase() : ''
-            if (
-              !detail.includes('not confirmed') &&
-              !detail.includes('not verified')
-            )
-              throw error
+            const unconfirmed =
+              detail.includes('not confirmed') || detail.includes('not verified')
+            // Connexion en une étape : adresse inconnue → le compte est créé tout de suite ;
+            // compte créé autrefois mais jamais confirmé → il est activé directement.
+            const unknown = detail.includes('invalid') && password.length >= 8
+            if (!unconfirmed && !unknown) throw error
             const activated = await createAccount({ data: { email, password } })
-            if (activated.status !== 'created') throw error
+            if (activated.status === 'closed' && unknown) {
+              setError(
+                'Les inscriptions sont momentanément fermées. Réessaie un peu plus tard.',
+              )
+              return
+            }
+            if (activated.status === 'fallback') {
+              // Adresse administrateur (ou création instantanée indisponible) : Identity envoie
+              // le lien de confirmation, renvoyé aussi pour un compte jamais confirmé.
+              const sent = await sendConfirmationLink(email, password)
+              if (sent === 'sent') {
+                setMessage(confirmationSent(email))
+                return
+              }
+              if (sent !== 'confirmed') throw error
+            } else if (activated.status !== 'created') throw error
             await login(email, password)
           }
         }
@@ -204,7 +276,15 @@ export function Connexion() {
         setError(
           'Adresse ou mot de passe incorrect. Utilise le mot de passe de ton compte Annales+. Si tu n’as pas encore de compte, choisis « Créer un compte ». Sinon, utilise « Mot de passe oublié ? ».',
         )
-      } else if (error instanceof AuthError && error.status === 429) {
+      } else if (detail.includes('already') && detail.includes('registered')) {
+        setError(
+          'Un compte existe déjà avec cette adresse. Connecte-toi avec ton mot de passe, ou utilise « Mot de passe oublié ? ».',
+        )
+      } else if (
+        (error instanceof AuthError && error.status === 429) ||
+        detail.includes('too many') ||
+        detail.includes('rate limit')
+      ) {
         setError(
           'Trop de tentatives. Patiente quelques minutes avant de réessayer.',
         )
@@ -245,59 +325,12 @@ export function Connexion() {
         {(mode === 'login' || mode === 'signup') && (
           <p className="rounded-2xl bg-muted p-4 text-sm text-muted-foreground">
             {mode === 'login'
-              ? 'Première visite ? Choisis « Créer un compte » ci-dessous. Le mot de passe demandé est celui d’Annales+, pas celui de ta boîte Gmail.'
+              ? 'Première visite ? Entre simplement ton Gmail et choisis un mot de passe (8 caractères ou plus) : ton compte est créé tout de suite. Le mot de passe est celui d’Annales+, pas celui de ta boîte Gmail.'
               : 'Choisis un mot de passe d’au moins 8 caractères, différent de celui de ta boîte Gmail.'}
           </p>
         )}
-        <form onSubmit={submit} className="space-y-4">
-          <fieldset disabled={pending || !ready} className="space-y-4">
-            {mode !== 'reset' && mode !== 'invite' && (
-              <label className="block space-y-2 font-semibold">
-                Adresse e-mail
-                <Input
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  className="min-h-11"
-                />
-              </label>
-            )}
-            {mode !== 'forgot' && (
-              <label className="block space-y-2 font-semibold">
-                Mot de passe
-                <Input
-                  name="password"
-                  type="password"
-                  minLength={mode === 'login' ? undefined : 8}
-                  autoComplete={
-                    mode === 'login' ? 'current-password' : 'new-password'
-                  }
-                  required
-                  className="min-h-11"
-                />
-              </label>
-            )}
-            <Button type="submit" className="min-h-11 w-full rounded-full">
-              {pending
-                ? 'Patiente…'
-                : mode === 'forgot'
-                  ? 'Recevoir le lien'
-                  : mode === 'invite'
-                    ? 'Activer mon compte'
-                    : mode === 'reset'
-                      ? 'Enregistrer le mot de passe'
-                      : mode === 'signup'
-                        ? 'Créer mon compte'
-                        : 'Me connecter'}
-            </Button>
-          </fieldset>
-        </form>
-        {google && mode === 'login' && (
+        {google && (mode === 'login' || mode === 'signup') && (
           <>
-            <p className="text-center text-sm text-muted-foreground">
-              ou connecte-toi avec Google
-            </p>
             <Button
               className="min-h-11 w-full rounded-full"
               disabled={!ready || pending || !google}
@@ -324,8 +357,69 @@ export function Connexion() {
                   ? 'Connexion en cours…'
                   : 'Continuer avec Google'}
             </Button>
+            <p className="text-center text-sm text-muted-foreground">
+              Un clic avec ton compte Gmail, sans mot de passe à retenir. Ou
+              bien :
+            </p>
           </>
         )}
+        <form onSubmit={submit} className="space-y-4">
+          <fieldset disabled={pending || !ready} className="space-y-4">
+            {mode !== 'reset' && mode !== 'invite' && (
+              <label className="block space-y-2 font-semibold">
+                Adresse e-mail
+                <Input
+                  name="email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="username"
+                  placeholder="ton-adresse@gmail.com"
+                  required
+                  className="min-h-11"
+                />
+              </label>
+            )}
+            {mode !== 'forgot' && (
+              <>
+                <label className="block space-y-2 font-semibold">
+                  Mot de passe
+                  <Input
+                    name="password"
+                    type="password"
+                    minLength={mode === 'login' ? undefined : 8}
+                    autoComplete={
+                      mode === 'login' ? 'current-password' : 'new-password'
+                    }
+                    placeholder={
+                      mode === 'login'
+                        ? 'Ton mot de passe Annales+'
+                        : '8 caractères ou plus'
+                    }
+                    required
+                    className="min-h-11"
+                  />
+                </label>
+                <p className="text-sm text-muted-foreground">
+                  Un mot de passe propre à Annales+, différent de celui de ta
+                  messagerie.
+                </p>
+              </>
+            )}
+            <Button type="submit" className="min-h-11 w-full rounded-full">
+              {pending
+                ? 'Patiente…'
+                : mode === 'forgot'
+                  ? 'Recevoir le lien'
+                  : mode === 'invite'
+                    ? 'Activer mon compte'
+                    : mode === 'reset'
+                      ? 'Enregistrer le mot de passe'
+                      : mode === 'signup'
+                        ? 'Créer mon compte'
+                        : 'Me connecter'}
+            </Button>
+          </fieldset>
+        </form>
         {error && (
           <p role="alert" className="text-sm text-destructive">
             {error}

@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { SupportContacts } from '@/components/app/support-contacts'
 import { logout } from '@netlify/identity'
 import { useEffect, useState } from 'react'
 import {
@@ -106,7 +107,9 @@ function Profil() {
         </p>
         <p className="text-sm text-muted-foreground">
           Accès illimité pendant tes {VIP_WELCOME_DAYS} premiers jours, puis{' '}
-          {FREE_MINUTES_PER_DAY} minutes gratuites par jour.
+          {FREE_MINUTES_PER_DAY} minutes gratuites par jour (fonctions
+          limitées : 15 messages IA, 1 nouvelle leçon, sujets niveaux 1–2, pas
+          d’oral). Ton temps revient chaque jour à minuit.
         </p>
         <Link
           to="/premium"
@@ -158,6 +161,7 @@ function Profil() {
             aria-hidden="true"
           />
         </a>
+        <SupportContacts className="px-3 py-2" />
       </section>
 
       <section className="rounded-2xl border border-border bg-card p-2 shadow-sm">

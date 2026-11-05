@@ -248,6 +248,22 @@ function QuizPlay({
   const q = questions[i]
   const m = matiereById(q.matiere)
 
+  useEffect(() => {
+    if (sending) return
+    const choixCount = questions[i]?.choix.length ?? 0
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      const k = e.key.toLowerCase()
+      const map: Record<string, number> = { '1': 0, '2': 1, '3': 2, '4': 3, a: 0, b: 1, c: 2, d: 3 }
+      if (k in map && map[k] < choixCount) {
+        e.preventDefault()
+        answer(map[k])
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [answer, sending, i, questions])
+
   if (sending)
     return (
       <div className="mx-auto max-w-reading space-y-4 rounded-2xl border border-border bg-card p-6 text-center">
@@ -311,6 +327,9 @@ function QuizPlay({
         <h1 className="mt-2 whitespace-pre-line font-display text-xl font-bold leading-snug sm:text-2xl">
           {q.question}
         </h1>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Astuce : tu peux répondre au clavier avec les touches 1 à 4.
+        </p>
         <ul className="mt-5 grid gap-3">
           {q.choix.map((c, k) => (
             <li key={`${i}-${k}`}>

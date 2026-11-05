@@ -15,7 +15,6 @@ import {
   ScrollText,
   ShieldAlert,
   Sparkles,
-  Timer,
   Users,
 } from 'lucide-react'
 import {
@@ -31,7 +30,6 @@ import {
   getSentinel,
   getSubjectAdmin,
   getSwitches,
-  listFreeGrants,
   listIdeasAdmin,
   listLessonsAdmin,
   listQuizzesAdmin,
@@ -42,23 +40,17 @@ import {
   resolveReport,
   searchSubjects,
   setAnnouncement,
-  setFreeGrant,
   setIdeaStatus,
   setSubjectArchived,
   setSwitch,
 } from '@/lib/admin.functions'
 import { findStudents } from '@/lib/billing.functions'
-import {
-  ADMIN_FREE_MINUTES_PER_DAY,
-  FREE_MINUTES_PER_DAY,
-  OFFERS,
-} from '@/lib/config'
+import { OFFERS } from '@/lib/config'
 
 const MODULES = [
   { id: 'tableau', label: 'Tableau de bord', icon: BarChart3 },
   { id: 'abonnements', label: 'Abonnements', icon: Users },
   { id: 'deblocages', label: 'Déblocages manuels', icon: Gift },
-  { id: 'forfait40', label: 'Forfait gratuit 40 min', icon: Timer },
   { id: 'sujets', label: 'Sujets', icon: FileText },
   { id: 'lecons', label: 'Leçons', icon: BookOpen },
   { id: 'quiz', label: 'Quiz du jour', icon: ClipboardList },
@@ -254,7 +246,6 @@ export function AdminModules() {
         {active === 'tableau' && <Dashboard />}
         {active === 'abonnements' && <Subscriptions />}
         {active === 'deblocages' && <Unlocks />}
-        {active === 'forfait40' && <FreeGrants />}
         {active === 'sujets' && <Subjects />}
         {active === 'lecons' && <Lessons />}
         {active === 'quiz' && <Quizzes />}
@@ -286,7 +277,6 @@ function Dashboard() {
           <Stat label="Expirent sous 7 j" value={data.expirent7} />
           <Stat label="En essai gratuit" value={data.enEssai} />
           <Stat label="Au forfait gratuit (essai fini, non payé)" value={data.bloques} />
-          <Stat label="Forfaits 40 min/jour actifs" value={data.forfaits40} />
           <Stat label="Revenus du mois" value={fcfa(data.revenusMois)} />
           <Stat label="Revenus totaux" value={fcfa(data.revenusTotal)} />
           <Stat label="Paiements en attente" value={data.paiementsAttente} />
@@ -510,169 +500,6 @@ function Unlocks() {
           {done}
         </p>
       )}
-    </div>
-  )
-}
-
-function FreeGrants() {
-  const grants = useLoad(() => listFreeGrants())
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState<
-    Awaited<ReturnType<typeof findStudents>>
-  >([])
-  const [selected, setSelected] = useState<string | null>(null)
-  const [days, setDays] = useState(0)
-  const [note, setNote] = useState('')
-  const [done, setDone] = useState<string | null>(null)
-  const action = useAction()
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Sans abonnement, chaque élève a {FREE_MINUTES_PER_DAY} min/jour avec des
-        fonctions limitées. Le forfait de {ADMIN_FREE_MINUTES_PER_DAY} min/jour
-        ne s’active que d’ici, élève par élève. Chaque décision est notée dans
-        le journal d’audit.
-      </p>
-      <form
-        className="flex gap-2"
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (query.trim().length < 2) return
-          void action.run(async () =>
-            setResults(await findStudents({ data: { query } })),
-          )
-        }}
-      >
-        <label className="sr-only" htmlFor="grant-search">
-          Prénom ou identifiant
-        </label>
-        <input
-          id="grant-search"
-          className={input}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Prénom ou identifiant de l’élève"
-        />
-        <button className={btnGhost} disabled={action.busy}>
-          Chercher
-        </button>
-      </form>
-      {results.length > 0 && (
-        <ul className="space-y-2">
-          {results.map((r) => (
-            <li key={r.userId}>
-              <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-border px-3">
-                <input
-                  type="radio"
-                  name="grant-student"
-                  checked={selected === r.userId}
-                  onChange={() => setSelected(r.userId)}
-                />
-                <span>
-                  {r.firstName} · {r.classe} {r.serie}
-                </span>
-              </label>
-            </li>
-          ))}
-        </ul>
-      )}
-      {selected && (
-        <form
-          className="grid gap-3 sm:grid-cols-[10rem_1fr_auto]"
-          onSubmit={(e) => {
-            e.preventDefault()
-            setDone(null)
-            void action.run(
-              () =>
-                setFreeGrant({
-                  data: { userId: selected, action: 'activer', days, note },
-                }),
-              () => {
-                setDone(
-                  `Forfait ${ADMIN_FREE_MINUTES_PER_DAY} min/jour activé ${days ? `pour ${days} jour(s)` : 'sans date de fin'}.`,
-                )
-                grants.reload()
-              },
-            )
-          }}
-        >
-          <label className="text-sm">
-            Durée (jours, 0 = sans fin)
-            <input
-              type="number"
-              min={0}
-              max={366}
-              className={input}
-              value={days}
-              onChange={(e) => setDays(Math.max(0, Number(e.target.value) || 0))}
-            />
-          </label>
-          <label className="text-sm">
-            Motif
-            <input
-              className={input}
-              required
-              minLength={3}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-          </label>
-          <button className={`${btnPrimary} self-end`} disabled={action.busy}>
-            Activer {ADMIN_FREE_MINUTES_PER_DAY} min/jour
-          </button>
-        </form>
-      )}
-      <ActionError error={action.error} />
-      {done && (
-        <p role="status" className="text-sm font-semibold text-secondary">
-          {done}
-        </p>
-      )}
-      <h4 className="pt-2 font-display text-lg font-bold">Forfaits actifs</h4>
-      <State loading={grants.loading} error={grants.error}>
-        {((list) =>
-          list.length === 0 ? (
-            <Empty>Aucun forfait {ADMIN_FREE_MINUTES_PER_DAY} min actif.</Empty>
-          ) : (
-            <ul className="space-y-2">
-              {list.map((g) => (
-                <li
-                  key={g.userId}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border p-3 text-sm"
-                >
-                  <span>
-                    <strong>{g.firstName}</strong> · {g.classe} ·{' '}
-                    {g.expiresAt ? `jusqu’au ${date(g.expiresAt)}` : 'sans date de fin'}{' '}
-                    · {g.minutesAujourdhui} min utilisées aujourd’hui
-                    {g.note && (
-                      <span className="block text-muted-foreground">{g.note}</span>
-                    )}
-                  </span>
-                  <button
-                    type="button"
-                    className={btnGhost}
-                    disabled={action.busy}
-                    onClick={() =>
-                      void action.run(
-                        () =>
-                          setFreeGrant({
-                            data: {
-                              userId: g.userId,
-                              action: 'retirer',
-                              note: 'Retrait par l’administrateur',
-                            },
-                          }),
-                        grants.reload,
-                      )
-                    }
-                  >
-                    Retirer
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ))(grants.data ?? [])}
-      </State>
     </div>
   )
 }

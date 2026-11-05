@@ -112,7 +112,7 @@ function OralPage() {
         <h1 className="font-display text-3xl font-extrabold">Simulateur d’oral</h1>
         <PremiumLockCard
           titre="Entraîne-toi à l’oral comme le jour J"
-          texte="L’examinateur IA te parle à voix haute dans la langue de ton choix (anglais, espagnol, allemand, arabe, chinois…), attend ta réponse et te donne une note sur 20 détaillée."
+          texte="L’examinateur IA te parle à voix haute dans la langue de ton choix (anglais, espagnol, allemand, arabe, chinois…), attend ta réponse et te donne une note sur 20 détaillée. Conseil : choisis un endroit calme, parle près du micro, et utilise le bouton « Plus lentement » si tu décroches."
           points={[
             'Thème, niveau et durée au choix',
             'Mains libres, coups de pouce et corrections en direct',
