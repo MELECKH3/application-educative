@@ -1,3 +1,4 @@
+import { ShareSite } from '@/components/app/share-site'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { logout } from '@netlify/identity'
 import { useEffect, useState } from 'react'
@@ -97,6 +98,7 @@ function Profil() {
 
       <BillingSummary billing={billing} />
       <InstallAppCard />
+      <ShareSite />
       <IdeaBox />
 
       <section className="rounded-2xl border-2 border-primary/50 bg-primary/5 p-5">

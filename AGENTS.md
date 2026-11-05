@@ -52,3 +52,5 @@ Le cahier des charges v15 de l'utilisateur fait foi pour tous les chiffres (prix
   (`listBackupTables`, `exportBackupTable`, `exportAccounts`). Toute nouvelle brique Netlify doit y être listée avec son équivalent.
 - Leçons : mots difficiles (`motsCles`) soulignés et cliquables dans le texte, « Écouter ce temps », « Lecture facile »
   (localStorage `annales-lecture-facile`), « Demander au tuteur » → `/ia?mode=Expliquer&question=…`.
+- Partage : `SITE_URL` / `SHARE_MESSAGE` (`src/lib/config.ts`) et `<ShareSite />` (`src/components/app/share-site.tsx`) sur l'accueil public,
+  l'accueil élève et le profil. Si le domaine change, ne modifier que `SITE_URL` (aperçu `og:image` absolu inclus).

@@ -4,6 +4,10 @@
 export const WAVE_NUMBER = '0712600858'
 export const WHATSAPP_URL = 'https://wa.me/2250712600858'
 export const WHATSAPP_DISPLAY = '07 12 60 08 58'
+/** Adresse publique du site, partagée par les élèves. */
+export const SITE_URL = 'https://etudemodern.netlify.app'
+export const SHARE_MESSAGE =
+  'Je révise le CEPE, le BEPC et le BAC avec Annales+ : sujets, leçons, quiz et tuteur IA. Essaie gratuitement :'
 export const ADMIN_EMAIL = 'tablechaisse926@gmail.com'
 
 /** Forfait gratuit standard (sans intervention de l'admin) : 30 min/jour, fonctions limitées. */

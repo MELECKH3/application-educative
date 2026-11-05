@@ -1,3 +1,4 @@
+import { ShareSite } from '@/components/app/share-site'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import {
   ArrowRight,
@@ -19,6 +20,7 @@ import {
   VIP_WELCOME_DAYS,
   WHATSAPP_URL,
   formatFcfa,
+  SITE_URL,
 } from '@/lib/config'
 
 export const Route = createFileRoute('/')({
@@ -41,8 +43,10 @@ export const Route = createFileRoute('/')({
       },
       {
         property: 'og:image',
-        content: '/.netlify/images?url=/img/hero-eleve.png&w=1200&fm=jpg',
+        // Adresse complète : WhatsApp et Facebook n'affichent pas les images relatives.
+        content: `${SITE_URL}/.netlify/images?url=/img/hero-eleve.png&w=1200&fm=jpg`,
       },
+      { property: 'og:url', content: SITE_URL },
     ],
   }),
   component: Landing,
@@ -264,6 +268,9 @@ function Landing() {
             </p>
           </div>
         </section>
+        <div className="mx-auto max-w-content px-4 pb-12 sm:px-6">
+          <ShareSite />
+        </div>
       </main>
 
       <footer className="border-t border-border">
