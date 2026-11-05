@@ -41,6 +41,33 @@ export const Route = createFileRoute('/connexion')({
   }),
   component: Connexion,
 })
+/** Message affiché quand Identity vient d'envoyer le lien de confirmation. */
+function confirmationSent(email: string) {
+  return email.toLowerCase() === ADMIN_EMAIL
+    ? `Lien envoyé à ${email}. Ouvre-le depuis ta boîte Gmail (regarde aussi Spam et Promotions) : tu choisiras ton mot de passe et tu arriveras directement sur la console d’administration.`
+    : 'Consulte ta boîte e-mail (regarde aussi Spam et Promotions) et ouvre le lien reçu : il confirme ton adresse et ouvre ton compte.'
+}
+
+/**
+ * Inscription classique, utilisée quand la création instantanée n'est pas possible
+ * (adresse administrateur). `exists` : compte déjà confirmé, donc mauvais mot de passe ;
+ * `failed` : envoi impossible, l'erreur de connexion d'origine est affichée.
+ */
+async function sendConfirmationLink(email: string, password: string) {
+  try {
+    const user = await signup(email, password)
+    return user?.confirmedAt ? ('confirmed' as const) : ('sent' as const)
+  } catch (error) {
+    const detail = error instanceof Error ? error.message.toLowerCase() : ''
+    if (detail.includes('already') && detail.includes('registered'))
+      return 'exists' as const
+    // Trop d'envois rapprochés : l'élève doit le savoir. Sinon, on garde l'erreur de connexion d'origine.
+    if (detail.includes('too many') || detail.includes('rate limit'))
+      throw error
+    return 'failed' as const
+  }
+}
+
 export function Connexion() {
   const { retour } = Route.useSearch()
   const [mode, setMode] = useState<
@@ -58,6 +85,11 @@ export function Connexion() {
     async function init() {
       try {
         const hash = new URLSearchParams(window.location.hash.slice(1))
+        const fromEmailLink = [
+          'confirmation_token',
+          'recovery_token',
+          'invite_token',
+        ].some((key) => hash.has(key))
         if (hash.has('error')) {
           window.history.replaceState(
             null,
@@ -66,8 +98,36 @@ export function Connexion() {
           )
           setError('La connexion a été annulée ou refusée. Tu peux réessayer.')
         }
-        const callback = await handleAuthCallback()
+        let callback: Awaited<ReturnType<typeof handleAuthCallback>>
+        try {
+          callback = await handleAuthCallback()
+        } catch (error) {
+          if (!fromEmailLink) throw error
+          window.history.replaceState(
+            null,
+            '',
+            window.location.pathname + window.location.search,
+          )
+          callback = null
+          if (active)
+            setError(
+              'Ce lien a expiré ou a déjà servi. Connecte-toi, ou demande un nouveau lien avec « Mot de passe oublié ? ».',
+            )
+        }
         if (!active) return
+        // Adresse administrateur confirmée par e-mail : elle choisit son propre mot de passe
+        // (celui saisi à l'inscription a pu être tapé par quelqu'un d'autre).
+        if (
+          callback?.type === 'confirmation' &&
+          callback.user?.email?.toLowerCase() === ADMIN_EMAIL
+        ) {
+          setMode('reset')
+          setMessage(
+            'Adresse confirmée. Choisis maintenant ton mot de passe administrateur.',
+          )
+          setReady(true)
+          return
+        }
         if (callback?.type === 'recovery' || callback?.type === 'invite') {
           setMode(callback.type === 'invite' ? 'invite' : 'reset')
           if (callback.type === 'invite') {
@@ -163,10 +223,7 @@ export function Connexion() {
         }
         const user = await signup(email, password)
         if (user.confirmedAt) window.location.assign(retour)
-        else
-          setMessage(
-            'Consulte ta boîte e-mail et confirme ton adresse avant de te connecter.',
-          )
+        else setMessage(confirmationSent(email))
       } else {
         if (mode === 'invite') await acceptInvite(inviteToken, password)
         else if (mode === 'reset') await updateUser({ password })
@@ -189,7 +246,16 @@ export function Connexion() {
               )
               return
             }
-            if (activated.status !== 'created') throw error
+            if (activated.status === 'fallback') {
+              // Adresse administrateur (ou création instantanée indisponible) : Identity envoie
+              // le lien de confirmation, renvoyé aussi pour un compte jamais confirmé.
+              const sent = await sendConfirmationLink(email, password)
+              if (sent === 'sent') {
+                setMessage(confirmationSent(email))
+                return
+              }
+              if (sent !== 'confirmed') throw error
+            } else if (activated.status !== 'created') throw error
             await login(email, password)
           }
         }
@@ -210,7 +276,15 @@ export function Connexion() {
         setError(
           'Adresse ou mot de passe incorrect. Utilise le mot de passe de ton compte Annales+. Si tu n’as pas encore de compte, choisis « Créer un compte ». Sinon, utilise « Mot de passe oublié ? ».',
         )
-      } else if (error instanceof AuthError && error.status === 429) {
+      } else if (detail.includes('already') && detail.includes('registered')) {
+        setError(
+          'Un compte existe déjà avec cette adresse. Connecte-toi avec ton mot de passe, ou utilise « Mot de passe oublié ? ».',
+        )
+      } else if (
+        (error instanceof AuthError && error.status === 429) ||
+        detail.includes('too many') ||
+        detail.includes('rate limit')
+      ) {
         setError(
           'Trop de tentatives. Patiente quelques minutes avant de réessayer.',
         )
