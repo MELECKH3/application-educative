@@ -22,6 +22,9 @@ import {
   changeAccess,
   deleteLesson,
   exportCsv,
+  exportBackupTable,
+  exportAccounts,
+  listBackupTables,
   generateWeeklyReport,
   getAdminStats,
   getAnnouncementAdmin,
@@ -285,7 +288,10 @@ function Dashboard() {
           <Stat label="Abonnés actifs" value={data.abonnes} />
           <Stat label="Expirent sous 7 j" value={data.expirent7} />
           <Stat label="En essai gratuit" value={data.enEssai} />
-          <Stat label="Au forfait gratuit (essai fini, non payé)" value={data.bloques} />
+          <Stat
+            label="Au forfait gratuit (essai fini, non payé)"
+            value={data.bloques}
+          />
           <Stat label="Forfaits 40 min/jour actifs" value={data.forfaits40} />
           <Stat label="Revenus du mois" value={fcfa(data.revenusMois)} />
           <Stat label="Revenus totaux" value={fcfa(data.revenusTotal)} />
@@ -604,7 +610,9 @@ function FreeGrants() {
               max={366}
               className={input}
               value={days}
-              onChange={(e) => setDays(Math.max(0, Number(e.target.value) || 0))}
+              onChange={(e) =>
+                setDays(Math.max(0, Number(e.target.value) || 0))
+              }
             />
           </label>
           <label className="text-sm">
@@ -642,10 +650,14 @@ function FreeGrants() {
                 >
                   <span>
                     <strong>{g.firstName}</strong> · {g.classe} ·{' '}
-                    {g.expiresAt ? `jusqu’au ${date(g.expiresAt)}` : 'sans date de fin'}{' '}
+                    {g.expiresAt
+                      ? `jusqu’au ${date(g.expiresAt)}`
+                      : 'sans date de fin'}{' '}
                     · {g.minutesAujourdhui} min utilisées aujourd’hui
                     {g.note && (
-                      <span className="block text-muted-foreground">{g.note}</span>
+                      <span className="block text-muted-foreground">
+                        {g.note}
+                      </span>
                     )}
                   </span>
                   <button
@@ -1189,6 +1201,74 @@ function Exports() {
         </button>
       </div>
       <ActionError error={action.error} />
+      <FullBackup />
+    </div>
+  )
+}
+
+/** Sauvegarde complète en JSON : toutes les tables, pour pouvoir changer d'hébergeur à tout moment. */
+function FullBackup() {
+  const action = useAction()
+  const [progress, setProgress] = useState('')
+  const run = () =>
+    void action.run(async () => {
+      const tables = await listBackupTables()
+      const backup: Record<string, unknown[]> = {}
+      for (const [n, { table }] of tables.entries()) {
+        setProgress(`Table ${n + 1} / ${tables.length} : ${table}`)
+        const rows: unknown[] = []
+        for (let page = 0; page < 10000; page++) {
+          const res = await exportBackupTable({ data: { table, page } })
+          rows.push(...res.rows)
+          if (!res.more) break
+        }
+        backup[table] = rows
+      }
+      setProgress('Comptes de connexion…')
+      const comptes = await exportAccounts().catch(() => null)
+      const file = JSON.stringify(
+        {
+          application: 'Annales+',
+          comptes,
+          creeLe: new Date().toISOString(),
+          tables: backup,
+        },
+        null,
+        1,
+      )
+      const url = URL.createObjectURL(
+        new Blob([file], { type: 'application/json' }),
+      )
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `annales-sauvegarde-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      setProgress(`Sauvegarde terminée : ${tables.length} tables.`)
+    })
+  return (
+    <div className="space-y-2 border-t border-border pt-4">
+      <h4 className="font-semibold">Sauvegarde complète</h4>
+      <p className="text-sm text-muted-foreground">
+        Télécharge toutes les données (élèves, paiements, sujets, leçons, quiz…)
+        dans un seul fichier. Garde-le en lieu sûr : il permet de réinstaller
+        Annales+ chez un autre hébergeur si besoin. La liste des comptes
+        (adresses, sans mot de passe) est incluse ; les captures de reçus ne le
+        sont pas.
+      </p>
+      <button
+        type="button"
+        className={btnGhost}
+        disabled={action.busy}
+        onClick={run}
+      >
+        <Download className="size-4" aria-hidden="true" /> Tout sauvegarder
+      </button>
+      {progress && (
+        <p role="status" className="text-sm text-muted-foreground">
+          {progress}
+        </p>
+      )}
     </div>
   )
 }

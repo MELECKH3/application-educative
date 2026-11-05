@@ -12,11 +12,14 @@ import { TUTOR_MODES } from '@/lib/config'
 import { MAX_IMAGE_BYTES } from '@/lib/ai'
 import { askTutor, reportAiAnswer } from '@/lib/ai.functions'
 import { useStudent } from '@/hooks/use-student'
+import { examenOf } from '@/lib/curriculum'
 
 export const Route = createFileRoute('/_app/ia')({
   validateSearch: z.object({
     sujet: z.string().optional(),
     mode: z.enum(TUTOR_MODES).optional().catch(undefined),
+    // Question préremplie (ex. « Demander au tuteur » depuis une leçon).
+    question: z.string().max(600).optional().catch(undefined),
   }),
   loaderDeps: ({ search }) => ({ sujet: search.sujet }),
   loader: async ({ deps }) =>
@@ -59,6 +62,22 @@ const SUGGESTIONS: Record<Mode, string[]> = {
   'Discussion libre': ['Comment bien réviser le BAC en un mois ?', 'J’ai du mal à me concentrer, que faire ?', 'Quelles études après un BAC D ?'],
 }
 
+/** Suggestions du mode, complétées par des idées liées au sujet ouvert et à l'examen de la classe. */
+export function suggestionsFor(mode: Mode, examen: string, sujetTitre?: string) {
+  const extra: string[] = []
+  if (sujetTitre) {
+    if (mode === 'Expliquer' || mode === 'Pas à pas')
+      extra.push(`Par quoi commencer pour « ${sujetTitre} » ?`, 'Quelles notions du cours faut-il connaître pour ce sujet ?')
+    else if (mode === 'Quiz') extra.push('Fais-moi un quiz sur les notions de ce sujet')
+    else if (mode === 'Exercice similaire') extra.push('Donne-moi un exercice proche de ce sujet, plus facile')
+    else if (mode === 'Résumé de cours') extra.push('Résume le cours utile pour ce sujet')
+  }
+  if (mode === 'Discussion libre')
+    extra.push(`Fais-moi un planning de révision pour le ${examen} sur 2 semaines`, `Quels conseils pour le jour du ${examen} ?`)
+  if (mode === 'Expliquer') extra.push('Explique-moi comme si j’avais 10 ans')
+  return [...extra, ...SUGGESTIONS[mode]].slice(0, 5)
+}
+
 function storageKey(sujetId?: string) {
   return `annales-tuteur-${sujetId ?? 'libre'}`
 }
@@ -73,7 +92,7 @@ function readFile(file: File) {
 }
 
 export function TutorPage() {
-  const { sujet: sujetId, mode: initialMode } = Route.useSearch()
+  const { sujet: sujetId, mode: initialMode, question } = Route.useSearch()
   const student = useStudent()
   const sujet = Route.useLoaderData() ?? undefined
   const welcome: ChatMessage[] = sujet
@@ -87,7 +106,7 @@ export function TutorPage() {
     : [{ role: 'tuteur', text: `Bonjour ${student.firstName} ! ${tutorWelcome[0].text.replace(/^Bonjour ! /, '')}` }]
   const [mode, setMode] = useState<Mode>(initialMode ?? TUTOR_MODES[0])
   const [messages, setMessages] = useState<ChatMessage[]>(welcome)
-  const [input, setInput] = useState('')
+  const [input, setInput] = useState(question ?? '')
   const [photo, setPhoto] = useState<Photo | null>(null)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
@@ -300,7 +319,7 @@ export function TutorPage() {
           <div className="pt-2">
             <p className="mb-2 text-xs font-semibold text-muted-foreground">Suggestions pour le mode « {mode} »</p>
             <div className="flex flex-wrap gap-2">
-              {SUGGESTIONS[mode].map((s) => (
+              {suggestionsFor(mode, examenOf(student.classe), sujet?.titre).map((s) => (
                 <button
                   key={s}
                   type="button"

@@ -84,3 +84,16 @@ it('enregistre le signalement d’une réponse', async () => {
     }),
   )
 })
+
+it('préremplit la question venue d’une leçon', () => {
+  h.search = { ...h.search, question: 'Je n’ai pas compris les dérivées' } as typeof h.search
+  render(<TutorPage />)
+  expect(screen.getByLabelText('Ta question')).toHaveValue('Je n’ai pas compris les dérivées')
+})
+
+it('adapte les suggestions au sujet ouvert et à l’examen de la classe', async () => {
+  const { suggestionsFor } = await import('./ia')
+  expect(suggestionsFor('Discussion libre', 'BAC')[0]).toContain('BAC')
+  expect(suggestionsFor('Expliquer', 'BEPC', 'Les suites')[0]).toContain('Les suites')
+  expect(suggestionsFor('Quiz', 'BAC').length).toBeLessThanOrEqual(5)
+})

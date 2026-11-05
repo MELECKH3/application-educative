@@ -48,3 +48,7 @@ Le cahier des charges v15 de l'utilisateur fait foi pour tous les chiffres (prix
 - Appels IA : toujours étaler `generationParams(model, maxTokens)` (`src/lib/models.ts`) au lieu de `max_tokens`. Sinon le modèle
   « réfléchit » jusqu'à épuiser la limite et ne renvoie aucun texte (panne des leçons du 04/11/2026). Haiku : réflexion coupée ;
   Sonnet/Opus : `disabled` refusé par l'API, donc effort « low » + `THINKING_MARGIN`.
+- Plan B d'hébergement : `HEBERGEMENT.md`. Sauvegarde complète JSON (toutes les tables + comptes sans mot de passe) dans /admin → Exports
+  (`listBackupTables`, `exportBackupTable`, `exportAccounts`). Toute nouvelle brique Netlify doit y être listée avec son équivalent.
+- Leçons : mots difficiles (`motsCles`) soulignés et cliquables dans le texte, « Écouter ce temps », « Lecture facile »
+  (localStorage `annales-lecture-facile`), « Demander au tuteur » → `/ia?mode=Expliquer&question=…`.
