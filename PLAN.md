@@ -39,7 +39,9 @@ les inscriptions ouvertes par e-mail, la confirmation obligatoire et Google dés
 À valider après déploiement : activation Identity et configuration du fournisseur Google, parcours OAuth réel,
 confirmation e-mail et persistance sur la base provisionnée. Les droits administrateur ont été ajoutés pour
 `tablechaisse926@gmail.com` uniquement, avec rôle Identity `admin` attribué par le propriétaire du projet,
-table `user_roles` et contrôle serveur `hasRole()`. La suppression automatique du compte reste à livrer
+table `user_roles` et contrôle serveur `hasRole()`. Connexion admin sans tableau de bord Netlify (5 nov. 2026) : bouton « Renvoyer le lien de confirmation »
+et aide dédiée sur `/connexion` quand l’adresse admin n’est pas confirmée ou que le mot de passe est refusé.
+La suppression automatique du compte reste à livrer
 (une demande WhatsApp est disponible). Le jalon n’est donc pas déclaré livré.
 
 - Netlify Identity : e-mail + mot de passe (confirmation obligatoire), « Continuer avec Google », mot de passe oublié / réinitialisation, retour vers la page demandée.

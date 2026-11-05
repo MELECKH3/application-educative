@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   AuthError,
   acceptInvite,
@@ -53,6 +53,30 @@ export function Connexion() {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  // Identifiants du dernier essai refusé faute de confirmation : permet de renvoyer le lien.
+  const unconfirmed = useRef<{ email: string; password: string } | null>(null)
+  const [canResend, setCanResend] = useState(false)
+  const [adminHint, setAdminHint] = useState(false)
+  async function resendConfirmation() {
+    const creds = unconfirmed.current
+    if (!creds || pending) return
+    setPending(true)
+    setError('')
+    try {
+      await signup(creds.email, creds.password)
+      setMessage(
+        'Nouveau lien envoyé à ' +
+          creds.email +
+          '. Ouvre-le sur cet appareil (vérifie aussi les courriers indésirables), puis reconnecte-toi.',
+      )
+    } catch {
+      setMessage(
+        'Si le lien n’arrive pas, choisis « Mot de passe oublié ? » : le lien reçu confirme aussi ton adresse.',
+      )
+    } finally {
+      setPending(false)
+    }
+  }
   useEffect(() => {
     let active = true
     async function init() {
@@ -134,6 +158,8 @@ export function Connexion() {
     setPending(true)
     setError('')
     setMessage('')
+    setCanResend(false)
+    setAdminHint(email.toLowerCase() === ADMIN_EMAIL)
     try {
       sessionStorage.setItem('annales-retour', retour)
       if (mode === 'forgot') {
@@ -182,7 +208,9 @@ export function Connexion() {
               !detail.includes('not verified')
             )
               throw error
-            const activated = await createAccount({ data: { email, password } })
+            const activated = await createAccount({
+              data: { email, password },
+            })
             if (activated.status !== 'created') throw error
             await login(email, password)
           }
@@ -197,6 +225,10 @@ export function Connexion() {
       const detail =
         error instanceof AuthError ? error.message.toLowerCase() : ''
       if (detail.includes('not confirmed') || detail.includes('not verified')) {
+        if (email && password) {
+          unconfirmed.current = { email, password }
+          setCanResend(true)
+        }
         setError(
           'Confirme ton adresse avec le lien reçu par e-mail, puis reviens te connecter. Vérifie aussi les courriers indésirables.',
         )
@@ -330,6 +362,30 @@ export function Connexion() {
           <p role="alert" className="text-sm text-destructive">
             {error}
           </p>
+        )}
+        {canResend && (
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-11 w-full rounded-full"
+            disabled={pending}
+            onClick={resendConfirmation}
+          >
+            Renvoyer le lien de confirmation
+          </Button>
+        )}
+        {adminHint && error && mode === 'login' && (
+          <div className="space-y-2 rounded-2xl bg-muted p-4 text-sm">
+            <p className="font-semibold">Compte administrateur</p>
+            <p className="text-muted-foreground">
+              Aucune action n’est nécessaire sur Netlify : l’accès admin s’ouvre
+              tout seul dès que l’adresse est confirmée. Si tu n’as jamais créé
+              ce compte, choisis « Créer un compte » puis clique sur le lien
+              reçu. Si tu as oublié le mot de passe ou si le lien ne vient pas,
+              choisis « Mot de passe oublié ? » : ce lien confirme aussi
+              l’adresse et te permet de choisir un nouveau mot de passe.
+            </p>
+          </div>
         )}
         {message && (
           <p role="status" className="text-sm text-secondary">

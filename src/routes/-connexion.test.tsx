@@ -259,3 +259,23 @@ it('renouvelle une session expirée avant de rouvrir la page demandée', async (
     location.replace.mock.invocationCallOrder[0],
   )
 })
+it('aide l’administrateur non confirmé à renvoyer le lien sans passer par Netlify', async () => {
+  auth.login.mockRejectedValue(new AuthError('Email not confirmed'))
+  auth.signup.mockResolvedValue({ confirmedAt: null })
+  const user = await ready()
+  await user.type(
+    screen.getByLabelText('Adresse e-mail'),
+    'tablechaisse926@gmail.com',
+  )
+  await user.type(screen.getByLabelText('Mot de passe'), password)
+  await user.click(screen.getByRole('button', { name: 'Me connecter' }))
+  expect(await screen.findByText('Compte administrateur')).toBeInTheDocument()
+  await user.click(
+    screen.getByRole('button', { name: 'Renvoyer le lien de confirmation' }),
+  )
+  expect(auth.signup).toHaveBeenCalledWith(
+    'tablechaisse926@gmail.com',
+    password,
+  )
+  expect(await screen.findByText(/Nouveau lien envoyé/)).toBeInTheDocument()
+})

@@ -9,6 +9,10 @@ import {
   Sigma,
   Lightbulb,
   ListChecks,
+  MessageCircleQuestion,
+  Square,
+  Type,
+  Volume2,
   Loader2,
   PencilLine,
   RotateCcw,
@@ -21,7 +25,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
-import { speakText } from '@/lib/voice'
+import { speakText, stopSpeaking } from '@/lib/voice'
 import { gradeLessonSummary, rephraseLessonStep } from '@/lib/ai.functions'
 import { ExplainLesson } from '@/components/app/explain-lesson'
 import { matiereById, matieresPour } from '@/lib/curriculum'
@@ -664,26 +668,73 @@ function CheckQuestion({
 }
 
 /** Ligne de leçon : met en valeur les mini-exemples (« Ex. : ») et les étapes (« Étape 1 — »). */
-function LessonLine({ text }: { text: string }) {
+/** Mot difficile souligné : un appui affiche son sens simple (fonctionne aussi au toucher). */
+function MotBulle({ mot, sens }: { mot: string; sens: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <span className="relative inline">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="cursor-help font-semibold underline decoration-primary decoration-dotted underline-offset-4"
+      >
+        {mot}
+      </button>
+      {open && (
+        <span role="note" className="mx-1 rounded-lg bg-primary/10 px-2 py-0.5 text-sm">
+          {sens}
+        </span>
+      )}
+    </span>
+  )
+}
+
+/** Met en valeur les mots difficiles du chapitre dans le texte de la leçon. */
+function WithMots({ text, mots }: { text: string; mots?: MotCle[] }) {
+  const list = (mots ?? []).filter((m) => m.mot.length >= 3)
+  if (!list.length) return <>{text}</>
+  const escaped = list
+    .map((m) => m.mot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .sort((a, b) => b.length - a.length)
+  const re = new RegExp(`(${escaped.join('|')})`, 'gi')
+  return (
+    <>
+      {text.split(re).map((part, k) => {
+        const mot = list.find((m) => m.mot.toLowerCase() === part.toLowerCase())
+        return mot ? <MotBulle key={k} mot={part} sens={mot.sens} /> : part
+      })}
+    </>
+  )
+}
+
+function LessonLine({ text, mots }: { text: string; mots?: MotCle[] }) {
   const ex = text.match(/^(.*?)\s*(?:Ex\.|Exemple)\s*:\s*(.+)$/s)
   const etape = text.match(/^((?:Étape|Etape)\s*\d+|Énoncé|Conclusion|Piège)\s*([—:–-])\s*(.+)$/s)
   if (etape)
     return (
       <p>
-        <span className="font-semibold text-primary">{etape[1]} {etape[2]}</span> {etape[3]}
+        <span className="font-semibold text-primary">{etape[1]} {etape[2]}</span>{' '}
+        <WithMots text={etape[3]} mots={mots} />
       </p>
     )
   if (ex && ex[1])
     return (
       <div>
-        <p>{ex[1]}</p>
+        <p>
+          <WithMots text={ex[1]} mots={mots} />
+        </p>
         <p className="mt-1 border-l-4 border-secondary/50 pl-3 text-sm text-muted-foreground">
           <span className="font-semibold text-secondary">Par exemple : </span>
           {ex[2]}
         </p>
       </div>
     )
-  return <p>{text}</p>
+  return (
+    <p>
+      <WithMots text={text} mots={mots} />
+    </p>
+  )
 }
 
 /** Mots difficiles du chapitre, expliqués simplement avant de commencer. */
@@ -1039,6 +1090,25 @@ function LessonFlow({
 }) {
   const [i, setI] = useState(0)
   const [simpler, setSimpler] = useState(false)
+  const [reading, setReading] = useState(false)
+  const [easy, setEasy] = useState(false)
+  // Lecture facile : préférence gardée sur l'appareil.
+  useEffect(() => {
+    const frame = requestAnimationFrame(() =>
+      setEasy(localStorage.getItem('annales-lecture-facile') === 'oui'),
+    )
+    return () => cancelAnimationFrame(frame)
+  }, [])
+  useEffect(() => () => stopSpeaking(), [])
+  const toggleEasy = () =>
+    setEasy((v) => {
+      try {
+        localStorage.setItem('annales-lecture-facile', v ? 'non' : 'oui')
+      } catch {
+        // Stockage indisponible : la préférence vaut pour cette visite.
+      }
+      return !v
+    })
   const [stage, setStage] = useState<Stage>('temps')
   const [checks, setChecks] = useState<Partial<Record<LessonStepKey, number>>>({})
   const [resume, setResume] = useState('')
@@ -1094,6 +1164,20 @@ function LessonFlow({
       setGrading(false)
     }
   }
+  const listen = () => {
+    if (reading) {
+      stopSpeaking()
+      setReading(false)
+      return
+    }
+    setReading(true)
+    speakText(`${step.titre}. ${step.contenu.join(' ')}`, {
+      codes: ['fr-FR', 'fr-CA', 'fr'],
+      rate: 0.95,
+      onEnd: () => setReading(false),
+    })
+  }
+  const tutorQuestion = `Je n’ai pas bien compris « ${step.titre} » dans la leçon « ${lecon.titre} ». Peux-tu me l’expliquer plus simplement, avec un exemple de la vie de tous les jours ?`
   const goTo = (key: LessonStepKey) => {
     const idx = lecon.etapes.findIndex((e) => e.key === key)
     if (idx < 0) return
@@ -1208,15 +1292,42 @@ function LessonFlow({
           <h2 className="text-xl">
             Temps {i + 1} · {step.titre}
           </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Temps {i + 1} sur {STEP_KEYS.length} · environ{' '}
+            {Math.max(1, Math.round(step.contenu.join(' ').split(/\s+/).length / 150))} min de lecture
+            {!!lecon.motsCles?.length && ' · touche un mot souligné pour voir son sens'}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Outils de lecture">
+            <Button variant="outline" size="sm" className="min-h-11 rounded-full" aria-pressed={reading} onClick={listen}>
+              {reading ? (
+                <>
+                  <Square className="size-4" aria-hidden="true" /> Arrêter la lecture
+                </>
+              ) : (
+                <>
+                  <Volume2 className="size-4" aria-hidden="true" /> Écouter ce temps
+                </>
+              )}
+            </Button>
+            <Button variant="outline" size="sm" className="min-h-11 rounded-full" aria-pressed={easy} onClick={toggleEasy}>
+              <Type className="size-4" aria-hidden="true" /> Lecture facile
+            </Button>
+            <Button asChild variant="outline" size="sm" className="min-h-11 rounded-full">
+              <Link to="/ia" search={{ mode: 'Expliquer', question: tutorQuestion }}>
+                <MessageCircleQuestion className="size-4" aria-hidden="true" /> Demander au tuteur
+              </Link>
+            </Button>
+          </div>
           <div
             className={cn(
               'mt-4 space-y-3 leading-relaxed',
+              easy && 'space-y-5 text-lg leading-loose tracking-wide',
               step.key === 'memo' &&
                 'rounded-xl border-2 border-primary/40 bg-primary/5 p-4',
             )}
           >
             {step.contenu.map((p) => (
-              <LessonLine key={p} text={p} />
+              <LessonLine key={p} text={p} mots={lecon.motsCles} />
             ))}
           </div>
           {step.key === 'memo' && !!lecon.formules?.length && <FormulesBlock formules={lecon.formules} />}
@@ -1273,6 +1384,8 @@ function LessonFlow({
               disabled={!nextReady || (!!check && checks[step.key] === undefined)}
               onClick={() => {
                 setSimpler(false)
+                stopSpeaking()
+                setReading(false)
                 window.scrollTo({ top: 0, behavior: 'smooth' })
                 if (!isLast) setI(i + 1)
                 else {

@@ -468,6 +468,7 @@ function OralSession({
       failed = true
       setError('Le micro n’est pas disponible. Autorise-le dans ton navigateur ou réponds par écrit.')
     }) as () => void
+    // eslint-disable-next-line react-hooks/immutability -- ref mutée dans un gestionnaire, pas pendant le rendu.
     recognition.current = r
     setListening(true)
     try {

@@ -1,3 +1,4 @@
+import { ShareSite } from '@/components/app/share-site'
 import { useStudent } from '@/hooks/use-student'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { ArrowRight, BookOpen, Flame, Loader2, Mic, RefreshCw, Sparkles, Timer, Trophy } from 'lucide-react'
@@ -182,6 +183,8 @@ function Accueil() {
           ))}
         </ul>
       </section>
+
+      <ShareSite />
     </div>
   )
 }

@@ -141,7 +141,8 @@ export const changeAccess = createServerFn({ method: 'POST' })
 export const listFreeGrants = createServerFn({ method: 'GET' }).handler(
   async () => {
     const { db } = await ctx()
-    const rows = await db.sql`SELECT g.user_id, g.minutes, g.note, g.expires_at::text, g.created_at::text,
+    const rows =
+      await db.sql`SELECT g.user_id, g.minutes, g.note, g.expires_at::text, g.created_at::text,
         f.first_name, f.classe, f.serie,
         COALESCE((SELECT u.seconds FROM daily_usage u WHERE u.user_id = g.user_id
           AND u.day = to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD')), 0)::int AS today
@@ -539,6 +540,81 @@ export const exportCsv = createServerFn({ method: 'POST' })
     }
   })
 
+/* Sauvegarde complète : toutes les tables, pour pouvoir changer d'hébergeur (voir HEBERGEMENT.md). */
+const BACKUP_PAGE = 2000
+
+async function backupTables(db: Awaited<ReturnType<typeof ctx>>['db']) {
+  const rows = await db.sql<{
+    table_name: string
+  }>`SELECT table_name FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY table_name`
+  return rows.map((r) => String(r.table_name))
+}
+
+export const listBackupTables = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    const { db, log } = await ctx()
+    const tables = await backupTables(db)
+    const counts = await Promise.all(
+      tables.map(async (t) => {
+        const { rows } = await db.pool.query(
+          `SELECT count(*)::int AS n FROM "${t.replace(/"/g, '""')}"`,
+        )
+        return { table: t, rows: Number(rows[0]?.n ?? 0) }
+      }),
+    )
+    await log('sauvegarde_complete', null, `${tables.length} tables`)
+    return counts
+  },
+)
+
+export const exportBackupTable = createServerFn({ method: 'POST' })
+  .validator(
+    z.object({
+      table: z.string().min(1).max(63),
+      page: z.number().int().min(0).max(10000),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const { db } = await ctx()
+    // Le nom n'est accepté que s'il figure dans la liste réelle des tables (aucune injection possible).
+    if (!(await backupTables(db)).includes(data.table))
+      throw new Error('Table inconnue.')
+    const { rows } = await db.pool.query(
+      `SELECT * FROM "${data.table.replace(/"/g, '""')}" ORDER BY 1 LIMIT $1 OFFSET $2`,
+      [BACKUP_PAGE, data.page * BACKUP_PAGE],
+    )
+    return { rows, more: rows.length === BACKUP_PAGE }
+  })
+
+/** Comptes de connexion (sans mot de passe) : relie chaque identifiant élève à son adresse e-mail. */
+export const exportAccounts = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    await ctx()
+    const { admin } = await import('@netlify/identity')
+    const out: {
+      id: string
+      email: string | null
+      roles: string[]
+      confirmedAt: string | null
+      createdAt: string | null
+    }[] = []
+    for (let page = 1; page <= 200; page++) {
+      const users = await admin.listUsers({ page, perPage: 100 })
+      for (const u of users)
+        out.push({
+          id: u.id,
+          email: u.email ?? null,
+          roles: u.roles ?? [],
+          confirmedAt: u.confirmedAt ?? null,
+          createdAt: u.createdAt ?? null,
+        })
+      if (users.length < 100) break
+    }
+    return out
+  },
+)
+
 /* 10. Signalements (sujets + réponses de l'IA) */
 export const listReports = createServerFn({ method: 'GET' }).handler(
   async () => {
@@ -646,7 +722,8 @@ export const getSentinel = createServerFn({ method: 'GET' }).handler(
         detail: `${r.first_name ?? r.user_id} : ${r.n} paiements refusés en 30 jours.`,
       })
     // Chaque paiement en attente passe par les règles de la Sentinelle (rejeu, ID inventé, montant…).
-    const enAttente = await db.sql`SELECT p.id, p.reference, f.first_name FROM payments p
+    const enAttente =
+      await db.sql`SELECT p.id, p.reference, f.first_name FROM payments p
       LEFT JOIN profiles f ON f.user_id = p.user_id
       WHERE p.status = 'pending' ORDER BY p.created_at DESC LIMIT 100`
     const { sentinelVerdicts } = await import('./sentinel.server')
